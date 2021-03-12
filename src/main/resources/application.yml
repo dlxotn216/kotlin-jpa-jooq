@@ -1,0 +1,24 @@
+spring:
+  profiles:
+    active: local
+  datasource:
+    hikari:
+      max-lifetime: 420000
+      connection-timeout: 10000
+      validation-timeout: 10000
+      idle-timeout: 30000
+      jdbc-url: jdbc:h2:~/ktjpajooq;DB_CLOSE_DELAY=-1
+      username: sa
+      password:
+      driver-class-name: org.h2.Driver
+      maximum-pool-size: 50
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+server:
+  port: 8090
