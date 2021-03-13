@@ -1,42 +1,27 @@
 <configuration xmlns="http://www.jooq.org/xsd/jooq-codegen-3.14.0.xsd">
-    <!-- JDBC connection parameters -->
-        <jdbc>
-            <driver>org.h2.Driver</driver>
-            <url>jdbc:h2:~/ktjpajooq</url>
-            <user>sa</user>
-        </jdbc>
-
     <generator>
         <name>org.jooq.codegen.KotlinGenerator</name>
         <database>
-            <name>org.jooq.meta.h2.H2Database</name>
-            <includes>.*</includes>
-            <inputSchema>PUBLIC</inputSchema>
+            <name>org.jooq.meta.extensions.ddl.DDLDatabase</name>
+            <properties>
+                <property>
+                    <key>scripts</key>
+                    <value>src/main/resources/jooq/schema.sql</value>
+                </property>
+                <property>
+                    <key>sort</key>
+                    <value>semantic</value>
+                </property>
+                <property>
+                    <key>unqualifiedSchema</key>
+                    <value>none</value>
+                </property>
+                <property>
+                    <key>defaultNameCase</key>
+                    <value>as_is</value>
+                </property>
+            </properties>
         </database>
-
-<!--        <name>org.jooq.codegen.KotlinGenerator</name>-->
-<!--        <database>-->
-<!--            <name>org.jooq.meta.extensions.jpa.JPADatabase</name>-->
-<!--            <properties>-->
-<!--                &lt;!&ndash; A comma separated list of Java packages, that contain your entities &ndash;&gt;-->
-<!--                <property>-->
-<!--                    <key>packages</key>-->
-<!--                    <value>io.taesu.ktjpajooq</value>-->
-<!--                </property>-->
-<!--                <property>-->
-<!--                    <key>useAttributeConverters</key>-->
-<!--                    <value>true</value>-->
-<!--                </property>-->
-<!--                <property>-->
-<!--                    <key>unqualifiedSchema</key>-->
-<!--                    <value>none</value>-->
-<!--                </property>-->
-<!--                <property>-->
-<!--                    <key>hibernate.physical_naming_strategy</key>-->
-<!--                    <value>org.springframework.boot.orm.jpa.hibernate.SpringPhysicalNamingStrategy</value>-->
-<!--                </property>-->
-<!--            </properties>-->
-<!--        </database>-->
 
         <target>
             <packageName>io.taesu.ktjpajooq</packageName>

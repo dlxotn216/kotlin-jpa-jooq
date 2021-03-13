@@ -1,24 +1,27 @@
 spring:
-  profiles:
-    active: local
   datasource:
     hikari:
       max-lifetime: 420000
       connection-timeout: 10000
       validation-timeout: 10000
       idle-timeout: 30000
-      jdbc-url: jdbc:h2:~/ktjpajooq;DB_CLOSE_DELAY=-1
-      username: sa
-      password:
-      driver-class-name: org.h2.Driver
+      username: root
+      password: "0216"    # 잘..
+      driver-class-name: org.mariadb.jdbc.Driver
       maximum-pool-size: 50
+      jdbc-url: jdbc:mariadb://127.0.0.1:3306/DEMO
+    url: jdbc:mariadb://127.0.0.1:3306/DEMO관
   jpa:
     hibernate:
-      ddl-auto: create-drop
-    show-sql: true
+      ddl-auto: validate
     properties:
-      hibernate:
-        format_sql: true
+      org.hibernate.envers.audit_table_suffix: _HIS
+      org.hibernate.envers.modified_flag_suffix: _CHANGED
+      hibernate.jdbc.time_zone: UTC
+      hibernate.format_sql: true
+      hibernate.jdbc.batch_size: 100
+      hibernate.jdbc.order_inserts: true
+      hibernate.query.in_clause_parameter_padding: true
     open-in-view: false
 server:
   port: 8090

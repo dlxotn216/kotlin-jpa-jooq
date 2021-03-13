@@ -24,9 +24,9 @@ class Runner(
     override fun run(args: ApplicationArguments?) {
         userRepository.save(
                 User(
-                        id = "taesu",
-                        name = "Lee",
-                        email = "taesu@crscube.co.kr"
+                        id = "taesu3",
+                        name = "Lee3",
+                        email = "taesu3@crscube.co.kr"
                 ))
 
         userQuery.selectUsers()

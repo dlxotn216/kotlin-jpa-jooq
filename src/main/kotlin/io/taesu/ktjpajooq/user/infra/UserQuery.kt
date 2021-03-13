@@ -22,8 +22,8 @@ class UserQuery(
                 .fetchInto(UsrUserRecord::class.java)
                 .map {
                     UserSelectResult(
-                            key = it.key!!,
-                            name = it.name!!
+                            key = it.userKey ?: -1L,
+                            name = it.name ?: ""
                     )
                 }
     }
