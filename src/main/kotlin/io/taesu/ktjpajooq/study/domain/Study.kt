@@ -57,12 +57,12 @@ interface StudyRepository : JpaRepository<Study, Long>
 class StudyUser(
         @Id
         @ManyToOne(fetch = FetchType.LAZY, optional = false, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
-        @JoinColumn(name = "USER_ID")
+        @JoinColumn(name = "USER_KEY")
         val user: User,
 
         @Id
         @ManyToOne(fetch = FetchType.LAZY, optional = false, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
-        @JoinColumn(name = "STUDY_ID")
+        @JoinColumn(name = "STUDY_KEY")
         val study: Study
 ) : Serializable {
     override fun equals(other: Any?): Boolean {
