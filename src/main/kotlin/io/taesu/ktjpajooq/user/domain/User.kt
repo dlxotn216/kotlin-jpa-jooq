@@ -1,5 +1,6 @@
 package io.taesu.ktjpajooq.user.domain
 
+import io.taesu.ktjpajooq.study.domain.Study
 import org.springframework.data.jpa.repository.JpaRepository
 import javax.persistence.*
 
@@ -27,6 +28,18 @@ class User(
 
         @Column(name = "NAME", length = 512, nullable = false)
         val name: String
-)
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
 
-interface UserRepository : JpaRepository<User, Long>
+        other as User
+        return id == other.id
+    }
+
+    override fun hashCode() = id.hashCode()
+}
+
+interface UserRepository : JpaRepository<User, Long> {
+    fun findByKeyIn(keys: List<Long>): List<User>
+}
