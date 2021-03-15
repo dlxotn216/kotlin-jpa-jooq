@@ -43,6 +43,26 @@ class Audit(
         @Column(name = "MODIFIED_AT", nullable = false)
         var modifiedAt: LocalDateTime = LocalDateTime.now()
 ) : Serializable {
+    fun delete(reason: String) {
+        if (this.deleted) {
+            return;
+        }
+        this.deleted = true
+        this.reason = reason
+    }
+
+    fun restore(reason: String) {
+        if (!this.deleted) {
+            return;
+        }
+        this.deleted = false
+        this.reason = reason
+    }
+
+    fun update(reason: String) {
+        this.reason = reason
+    }
+
     companion object {
         const val serialVersionUID = 1L
     }

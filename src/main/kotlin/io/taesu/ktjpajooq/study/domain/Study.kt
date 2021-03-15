@@ -30,22 +30,38 @@ class Study(
         val id: String,
 
         @Column(name = "NAME", length = 512, nullable = false)
-        val name: String,
+        var name: String,
 
-        ) {
+        @Embedded
+        val audit: Audit = Audit()
+) {
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "study", cascade = [CascadeType.PERSIST, CascadeType.MERGE])
     val studyUsers = mutableSetOf<StudyUser>()
 
-    @Embedded
-    val audit: Audit = Audit()
 
-    operator fun plus(user: User) {
-        studyUsers.add(StudyUser(user, this))
+    val deleted: Boolean get() = audit.deleted
+    val reason: String get() = audit.reason
+
+    fun update(name: String, reason: String) {
+        if (this.name === name) {
+            return
+        }
+
+        this.name = name
+        this.audit.update(reason)
     }
 
-    operator fun plusAssign(user: User) {
-        studyUsers.add(StudyUser(user, this))
+    operator fun plus(user: User) = addUser(user)
+    operator fun plusAssign(user: User) = addUser(user)
+
+    private fun addUser(user: User) = addStudyUser(StudyUser(user, this))
+
+    operator fun plus(studyUser: StudyUser) = addStudyUser(studyUser)
+    operator fun plusAssign(studyUser: StudyUser) = addStudyUser(studyUser)
+
+    fun addStudyUser(studyUser: StudyUser) {
+        studyUsers += studyUser
     }
 
     override fun equals(other: Any?): Boolean {
@@ -80,6 +96,9 @@ class StudyUser(
     @Embedded
     val audit: Audit = Audit()
 
+    val deleted: Boolean get() = audit.deleted
+    val reason: String get() = audit.reason
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -89,6 +108,9 @@ class StudyUser(
     }
 
     override fun hashCode() = study.hashCode() + 19 * user.hashCode()
+
+    fun delete(reason: String) = audit.delete(reason)
+    fun restore(reason: String) = audit.restore(reason)
 }
 
 data class StudyUserId(

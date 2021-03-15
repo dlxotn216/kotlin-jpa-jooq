@@ -9,6 +9,7 @@ import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
+import org.springframework.context.annotation.Profile
 import org.springframework.stereotype.Component
 import org.springframework.transaction.annotation.Transactional
 
@@ -20,6 +21,7 @@ fun main(args: Array<String>) {
 }
 
 @Component
+@Profile("init")
 class Runner(
         val userRepository: UserRepository,
         val studyRepository: StudyRepository,

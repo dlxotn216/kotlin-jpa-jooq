@@ -14,7 +14,7 @@ class SuccessResponse(
     val status: String = "success"
 }
 
-class FailResponse(private val message: String?) {
+class FailResponse(val message: String?) {
     val status = "fail"
 
     companion object {

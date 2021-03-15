@@ -21,12 +21,8 @@ class StudyCreateService(
 ) {
     @Transactional
     fun create(request: StudyCreateRequest): Long {
-        val study = with(request) {
-            Study(id = id, name = name)
-        }
-
-        userRepository.findByKeyIn(request.studyUsers)
-                .forEach { study += it }
+        val study = with(request) { Study(id = id, name = name) }
+        userRepository.findByKeyIn(request.studyUsers).forEach { study += it }
 
         return studyRepository.save(study).key!!
     }
