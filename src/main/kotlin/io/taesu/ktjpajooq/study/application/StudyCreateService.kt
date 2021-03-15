@@ -26,7 +26,7 @@ class StudyCreateService(
         }
 
         userRepository.findByKeyIn(request.studyUsers)
-                .forEach { study.addUser(it) }
+                .forEach { study += it }
 
         return studyRepository.save(study).key!!
     }

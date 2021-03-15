@@ -1,6 +1,9 @@
 package io.taesu.ktjpajooq.user.domain
 
+import io.taesu.ktjpajooq.base.domain.Audit
 import io.taesu.ktjpajooq.study.domain.Study
+import org.hibernate.envers.Audited
+import org.springframework.data.jpa.domain.support.AuditingEntityListener
 import org.springframework.data.jpa.repository.JpaRepository
 import javax.persistence.*
 
@@ -13,6 +16,8 @@ import javax.persistence.*
  */
 @Table(name = "USR_USER")
 @Entity(name = "USER")
+@Audited
+@EntityListeners(value = [AuditingEntityListener::class])
 class User(
         @Id
         @Column(name = "USER_KEY")
@@ -29,6 +34,10 @@ class User(
         @Column(name = "NAME", length = 512, nullable = false)
         val name: String
 ) {
+
+    @Embedded
+    val audit: Audit = Audit()
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false

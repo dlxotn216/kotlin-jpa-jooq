@@ -41,10 +41,10 @@ class Runner(
                 email = "taesu2@crscube.co.kr"))
 
         val study = Study(id = "std1", name = "test1 study")
-        study.addUser(user1)
-        study.addUser(user1)
-        study.addUser(user2)
-        study.addUser(user2)
+        study += user1
+        study += user1
+        study += user2
+        study += user2
 
         studyRepository.save(study)
     }

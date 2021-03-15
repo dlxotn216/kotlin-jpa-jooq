@@ -1,10 +1,11 @@
 package io.taesu.ktjpajooq.study.domain
 
+import io.taesu.ktjpajooq.base.domain.Audit
 import io.taesu.ktjpajooq.user.domain.User
-import org.hibernate.annotations.NaturalId
+import org.hibernate.envers.Audited
+import org.springframework.data.jpa.domain.support.AuditingEntityListener
 import org.springframework.data.jpa.repository.JpaRepository
 import java.io.Serializable
-import java.util.*
 import javax.persistence.*
 
 /**
@@ -16,6 +17,8 @@ import javax.persistence.*
  */
 @Table(name = "STD_STUDY")
 @Entity(name = "STUDY")
+@Audited
+@EntityListeners(value = [AuditingEntityListener::class])
 class Study(
         @Id
         @Column(name = "STUDY_KEY")
@@ -34,7 +37,14 @@ class Study(
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "study", cascade = [CascadeType.PERSIST, CascadeType.MERGE])
     val studyUsers = mutableSetOf<StudyUser>()
 
-    fun addUser(user: User) {
+    @Embedded
+    val audit: Audit = Audit()
+
+    operator fun plus(user: User) {
+        studyUsers.add(StudyUser(user, this))
+    }
+
+    operator fun plusAssign(user: User) {
         studyUsers.add(StudyUser(user, this))
     }
 
@@ -54,6 +64,8 @@ interface StudyRepository : JpaRepository<Study, Long>
 @Table(name = "STD_USER")
 @IdClass(StudyUserId::class)
 @Entity(name = "STUDY_USER")
+@Audited
+@EntityListeners(value = [AuditingEntityListener::class])
 class StudyUser(
         @Id
         @ManyToOne(fetch = FetchType.LAZY, optional = false, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
@@ -65,6 +77,9 @@ class StudyUser(
         @JoinColumn(name = "STUDY_KEY")
         val study: Study
 ) : Serializable {
+    @Embedded
+    val audit: Audit = Audit()
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -81,4 +96,8 @@ data class StudyUserId(
         val study: Long
 ) : Serializable {
     constructor() : this(-1L, -1L)
+
+    companion object {
+        const val serialVersionUID = 1L
+    }
 }
