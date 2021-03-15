@@ -37,7 +37,7 @@ class Study(
 ) {
 
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "study", cascade = [CascadeType.PERSIST, CascadeType.MERGE])
-    val studyUsers = mutableSetOf<StudyUser>()
+    val studyUsers: MutableSet<StudyUser> = mutableSetOf()
 
 
     val deleted: Boolean get() = audit.deleted
@@ -91,11 +91,11 @@ class StudyUser(
         @Id
         @ManyToOne(fetch = FetchType.LAZY, optional = false, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
         @JoinColumn(name = "STUDY_KEY")
-        val study: Study
-) : Serializable {
-    @Embedded
-    val audit: Audit = Audit()
+        val study: Study,
 
+        @Embedded
+        val audit: Audit = Audit()
+) : Serializable {
     val deleted: Boolean get() = audit.deleted
     val reason: String get() = audit.reason
 

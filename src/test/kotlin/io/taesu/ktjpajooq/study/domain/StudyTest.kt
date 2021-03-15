@@ -26,12 +26,14 @@ internal class StudyTest {
         val studyUser2 = StudyUser(User(2L, "taesu2", "taesu2@crscube.co.kr", "Taesu2"), study)
         study.addStudyUser(studyUser1)
         study.addStudyUser(studyUser2)
+        val retrievedUser1 = StudyUser(User(2L, "taesu2", "taesu2@crscube.co.kr", "Taesu2"), study, studyUser1.audit)
+        val retrievedUser2 = StudyUser(User(1L, "taesu1", "taesu1@crscube.co.kr", "Taesu1"), study, studyUser2.audit)
 
         // when
-        studyUser1.delete("delete user")
-        studyUser2.delete("delete user")
-        study.addStudyUser(studyUser1)
-        study.addStudyUser(studyUser2)
+        retrievedUser1.delete("delete user")
+        retrievedUser2.delete("delete user")
+        study.addStudyUser(retrievedUser1)
+        study.addStudyUser(retrievedUser2)
 
         // then
         assertThat(study.studyUsers.all { it.deleted }).isTrue
@@ -50,11 +52,14 @@ internal class StudyTest {
         study.addStudyUser(studyUser1)
         study.addStudyUser(studyUser2)
 
+        val retrievedUser1 = StudyUser(User(2L, "taesu2", "taesu2@crscube.co.kr", "Taesu2"), study, studyUser1.audit)
+        val retrievedUser2 = StudyUser(User(1L, "taesu1", "taesu1@crscube.co.kr", "Taesu1"), study, studyUser2.audit)
+
         // when
-        studyUser1.restore("restore user")
-        studyUser2.restore("restore user")
-        study.addStudyUser(studyUser1)
-        study.addStudyUser(studyUser2)
+        retrievedUser2.restore("restore user")
+        retrievedUser1.restore("restore user")
+        study.addStudyUser(retrievedUser2)
+        study.addStudyUser(retrievedUser1)
 
         // then
         assertThat(study.studyUsers.all { it.deleted }).isFalse
