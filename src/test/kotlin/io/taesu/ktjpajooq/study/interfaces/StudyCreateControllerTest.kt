@@ -1,14 +1,13 @@
 package io.taesu.ktjpajooq.study.interfaces
 
-import io.taesu.ktjpajooq.AbstractTestContext
-import io.taesu.ktjpajooq.user.domain.User
-import io.taesu.ktjpajooq.user.domain.UserRepository
+import io.taesu.ktjpajooq.study.application.StudyCreateService
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.extension.ExtendWith
+import org.mockito.Mockito.`when`
 import org.springframework.beans.factory.annotation.Autowired
-import org.springframework.boot.test.context.SpringBootTest
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest
+import org.springframework.boot.test.mock.mockito.MockBean
 import org.springframework.http.MediaType
-import org.springframework.test.context.junit.jupiter.SpringExtension
+import org.springframework.test.web.servlet.MockMvc
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders
 import org.springframework.test.web.servlet.result.MockMvcResultHandlers
 import org.springframework.test.web.servlet.result.MockMvcResultMatchers
@@ -20,31 +19,30 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers
  * @version TBD
  * @since TBD
  */
-@ExtendWith(SpringExtension::class)
-@SpringBootTest
-internal class StudyCreateControllerTest : AbstractTestContext() {
+@WebMvcTest(StudyCreateController::class)
+internal class StudyCreateControllerTest {
 
     @Autowired
-    private lateinit var userRepository: UserRepository
+    lateinit var mockMvc: MockMvc
 
-    @Autowired
-    private lateinit var studyCreateController: StudyCreateController
-
-    override fun controller() = studyCreateController
+    @MockBean
+    private lateinit var studyCreateService: StudyCreateService
 
     @Test
     fun shouldSuccessToCreateStudy() {
         // given
-        val userKeys = userRepository.saveAll(
-                listOf(
-                        User(id = "taesu1", email = "taesu1@crscube.co.kr", name = "Lee Tae Su"),
-                        User(id = "taesu2", email = "taesu2@crscube.co.kr", name = "Lee Tae Su"))
-        ).map { it.key!! }
+        val id = "test_proto"
+        val name = "study creation test"
+        val studyCreateRequest = StudyCreateRequest(
+                id = id, name = name, studyUsers = listOf(1, 2)
+        )
+        `when`(studyCreateService.create(studyCreateRequest)).thenReturn(1L)
+
         val requestJson = """
             {
-                "id": "test_proto",
-                "name": "study creation test",
-                "studyUsers": [${userKeys.joinToString(",")}]
+                "id": "$id",
+                "name": "$name",
+                "studyUsers": [1, 2]
             }
         """.trimIndent()
 
@@ -55,7 +53,7 @@ internal class StudyCreateControllerTest : AbstractTestContext() {
                 .accept(MediaType.APPLICATION_JSON)
 
         //then
-        mockMvc!!.perform(request)
+        mockMvc.perform(request)
                 .andExpect(MockMvcResultMatchers.status().isCreated)
                 .andExpect(MockMvcResultMatchers.jsonPath("$.status").value("success"))
                 .andExpect(MockMvcResultMatchers.jsonPath("$.result.studyKey").exists())

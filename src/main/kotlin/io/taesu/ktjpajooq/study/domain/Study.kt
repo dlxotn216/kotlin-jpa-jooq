@@ -75,7 +75,9 @@ class Study(
     override fun hashCode() = id.hashCode()
 }
 
-interface StudyRepository : JpaRepository<Study, Long>
+interface StudyRepository : JpaRepository<Study, Long> {
+    fun findById(studyId: String): Study?
+}
 
 @Table(name = "STD_USER")
 @IdClass(StudyUserId::class)
