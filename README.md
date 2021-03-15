@@ -79,3 +79,8 @@ server:
 
 근데 JOOQ의 경우해서 빌드 후에 컬럼네임이 바뀐건 validation이 되진 않는다. JPA는 validate 단계가 있긴 한데..  
 좀 더 찾아봐야겠다 이 부분은. 
+
+### Mockito를 통해 Kotlin class를 spy, mock 할 수 없는 경우
+코틀린의 기본 class는 모두 final이나 Mockito는 상속 가능한 기본 생성자를 가진 클래스를 요구한다.  
+이 때 /src/test/resources 디렉터리 하위에 /mockito-extensions 디렉터리를 생성하고  
+org.mockito.plugins.MockMaker 파일에 mock-maker-inline 한 줄 적어주면 spy, mock를 통해 생성이 가능해진다.    
