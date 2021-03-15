@@ -1,5 +1,6 @@
 package io.taesu.ktjpajooq.base.interfaces
 
+import io.taesu.ktjpajooq.base.exception.InvalidRequestException
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -19,9 +20,20 @@ import org.springframework.web.bind.annotation.RestController
 @ControllerAdvice
 class ExceptionHandlerAdvice {
     private val log: Logger = LoggerFactory.getLogger(ExceptionHandlerAdvice::class.java)
+
+    @ExceptionHandler(InvalidRequestException::class)
+    fun handleInvalidRequestException(e: InvalidRequestException): ResponseEntity<FailResponse> {
+        return with(e) {
+            log.error("error $message", this)
+            ResponseEntity.status(statusCode).body(FailResponse(errorCode, message))
+        }
+    }
+
     @ExceptionHandler(Exception::class)
-    fun handleUserEmailDuplicatedException(e: Exception): ResponseEntity<FailResponse> {
-        log.error("error ${e.message}", e)
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(FailResponse.from(e.message))
+    fun handleException(e: Exception): ResponseEntity<FailResponse> {
+        return with(e) {
+            log.error("error $message", this)
+            ResponseEntity.status(HttpStatus.BAD_REQUEST).body(FailResponse("INVALID_STATUS", message ?: ""))
+        }
     }
 }

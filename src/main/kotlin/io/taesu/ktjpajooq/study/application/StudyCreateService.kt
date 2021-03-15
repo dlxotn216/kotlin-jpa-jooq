@@ -1,6 +1,5 @@
 package io.taesu.ktjpajooq.study.application
 
-import io.taesu.ktjpajooq.base.exception.InvalidRequestException
 import io.taesu.ktjpajooq.base.exception.throwException
 import io.taesu.ktjpajooq.study.domain.Study
 import io.taesu.ktjpajooq.study.domain.StudyRepository
@@ -19,13 +18,14 @@ import org.springframework.transaction.annotation.Transactional
  */
 @Component
 class StudyCreateService(
-        val studyRepository: StudyRepository,
-        val userRepository: UserRepository
+        private val studyRepository: StudyRepository,
+        private val userRepository: UserRepository
 ) {
     @Transactional
     fun create(request: StudyCreateRequest): Long {
         studyRepository.findById(request.id)?.let {
-            throwException("${request.id} is Duplicated study id", HttpStatus.CONFLICT)
+            throwException("STUDY_ID_DUPLICATED",
+                    "${request.id} is Duplicated study id", HttpStatus.CONFLICT)
         }
         val study = with(request) { Study(id = id, name = name) }
         userRepository.findByKeyIn(request.studyUsers).forEach { study += it }

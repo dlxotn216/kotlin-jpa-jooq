@@ -14,12 +14,10 @@ class SuccessResponse(
     val status: String = "success"
 }
 
-class FailResponse(val message: String?) {
+class FailResponse(
+        private val errorCode: String,
+        private val message: String) {
     val status = "fail"
-
-    companion object {
-        fun from(message: String?): FailResponse {
-            return FailResponse(message)
-        }
-    }
+    val error: Map<String, Any>
+        get() = mapOf("errorCode" to errorCode, "message" to message)
 }

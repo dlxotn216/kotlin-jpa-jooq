@@ -17,7 +17,7 @@ import java.net.URI
  */
 @RestController
 class StudyCreateController(
-        val studyCreateService: StudyCreateService
+        private val studyCreateService: StudyCreateService
 ) {
     @PostMapping("/api/v1/studies")
     fun create(@RequestBody request: StudyCreateRequest): ResponseEntity<SuccessResponse> {

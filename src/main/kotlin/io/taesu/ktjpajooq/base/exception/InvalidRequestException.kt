@@ -11,9 +11,11 @@ import org.springframework.http.HttpStatus
  * @since TBD
  */
 class InvalidRequestException(
+        val errorCode: String,
         override val message: String,
         val statusCode: HttpStatus = HttpStatus.BAD_REQUEST
 ) : NestedRuntimeException(message)
 
-fun throwException(message: String,
-                   statusCode: HttpStatus = HttpStatus.BAD_REQUEST): Nothing = throw InvalidRequestException(message, statusCode)
+fun throwException(errorCode: String,
+                   message: String,
+                   statusCode: HttpStatus = HttpStatus.BAD_REQUEST): Nothing = throw InvalidRequestException(errorCode, message, statusCode)
