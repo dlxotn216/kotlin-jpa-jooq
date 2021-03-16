@@ -1,6 +1,7 @@
 package io.taesu.ktjpajooq.study.application
 
 import io.taesu.ktjpajooq.base.exception.throwException
+import io.taesu.ktjpajooq.base.exception.throwResourceConflicted
 import io.taesu.ktjpajooq.study.domain.Study
 import io.taesu.ktjpajooq.study.domain.StudyRepository
 import io.taesu.ktjpajooq.study.interfaces.StudyCreateRequest
@@ -24,8 +25,7 @@ class StudyCreateService(
     @Transactional
     fun create(request: StudyCreateRequest): Long {
         studyRepository.findById(request.id)?.let {
-            throwException("STUDY_ID_DUPLICATED",
-                    "${request.id} is Duplicated study id", HttpStatus.CONFLICT)
+            throwResourceConflicted()
         }
         val study = with(request) { Study(id = id, name = name) }
         userRepository.findByKeyIn(request.studyUsers).forEach { study += it }

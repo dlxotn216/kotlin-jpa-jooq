@@ -22,3 +22,6 @@ fun throwException(errorCode: String,
 
 fun throwResourceNotFound(): Nothing = throw resourceNotFound()
 fun resourceNotFound() = InvalidRequestException("RESOURCE_NOT_FOUND", "Resource not found", HttpStatus.BAD_REQUEST)
+
+fun throwResourceConflicted(): Nothing = throw resourceConflicted()
+fun resourceConflicted() = InvalidRequestException("DUPLICATED_ID", "duplicated study id", HttpStatus.CONFLICT)
