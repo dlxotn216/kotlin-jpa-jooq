@@ -4,7 +4,6 @@ import io.taesu.ktjpajooq.study.domain.Study
 import io.taesu.ktjpajooq.study.domain.StudyRepository
 import io.taesu.ktjpajooq.user.domain.User
 import io.taesu.ktjpajooq.user.domain.UserRepository
-import io.taesu.ktjpajooq.user.infra.UserQuery
 import org.springframework.boot.ApplicationArguments
 import org.springframework.boot.ApplicationRunner
 import org.springframework.boot.autoconfigure.SpringBootApplication
@@ -25,7 +24,6 @@ fun main(args: Array<String>) {
 class Runner(
         val userRepository: UserRepository,
         val studyRepository: StudyRepository,
-        val userQuery: UserQuery
 ) : ApplicationRunner {
     @Transactional
     override fun run(args: ApplicationArguments?) {
