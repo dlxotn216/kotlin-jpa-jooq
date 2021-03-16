@@ -4,7 +4,7 @@ import io.taesu.ktjpajooq.base.domain.Audit
 import io.taesu.ktjpajooq.user.domain.User
 import org.hibernate.envers.Audited
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
-import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.repository.CrudRepository
 import java.io.Serializable
 import javax.persistence.*
 
@@ -60,12 +60,16 @@ class Study(
     operator fun plus(studyUser: StudyUser) = addStudyUser(studyUser)
     operator fun plusAssign(studyUser: StudyUser) = addStudyUser(studyUser)
 
-    fun addStudyUser(studyUser: StudyUser) {
-        if (!studyUsers.add(studyUser)) {
-            studyUsers.remove(studyUser)
-            studyUsers.add(studyUser)
+    fun addStudyUser(newUser: StudyUser) {
+        val studyUser = studyUsers.find { it == newUser }
+        if (studyUser != null) {
+            studyUser.update(deleted = newUser.deleted, reason = newUser.reason)
+        } else {
+            studyUsers += newUser
         }
     }
+
+    fun contains(studyUser: StudyUser) = studyUsers.contains(studyUser)
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -78,7 +82,7 @@ class Study(
     override fun hashCode() = id.hashCode()
 }
 
-interface StudyRepository : JpaRepository<Study, Long> {
+interface StudyRepository : CrudRepository<Study, Long> {
     fun findById(studyId: String): Study?
 }
 
@@ -88,7 +92,6 @@ interface StudyRepository : JpaRepository<Study, Long> {
 @Audited
 @EntityListeners(value = [AuditingEntityListener::class])
 class StudyUser(
-
         @Id
         @ManyToOne(fetch = FetchType.LAZY, optional = false, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
         @JoinColumn(name = "USER_KEY")
@@ -114,6 +117,13 @@ class StudyUser(
     }
 
     override fun hashCode() = study.hashCode() + 19 * user.hashCode()
+
+    fun update(deleted: Boolean, reason: String) {
+        when (deleted) {
+            true -> this.delete(reason)
+            false -> this.restore(reason)
+        }
+    }
 
     fun delete(reason: String) = audit.delete(reason)
     fun restore(reason: String) = audit.restore(reason)

@@ -36,7 +36,6 @@ class StudyUpdateRequest(
         val deleted: Boolean,
         val reason: String
 )
-
 class StudyUserUpdateRequest(
         val key: Long,
         val deleted: Boolean

@@ -6,6 +6,8 @@ import org.hibernate.envers.RevisionTimestamp
 import java.io.Serializable
 import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import javax.persistence.*
 
 
@@ -36,6 +38,6 @@ class Revision(
 
     @Transient
     fun getRevisionDate(): LocalDateTime {
-        return LocalDateTime.from(Instant.ofEpochMilli(timestamp))
+        return LocalDateTime.from(ZonedDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.of("UTC")))
     }
 }
