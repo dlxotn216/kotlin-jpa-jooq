@@ -26,8 +26,14 @@ internal class StudyTest {
         val studyUser2 = StudyUser(User(2L, "taesu2", "taesu2@crscube.co.kr", "Taesu2"), study)
         study.addStudyUser(studyUser1)
         study.addStudyUser(studyUser2)
-        val retrievedUser1 = StudyUser(User(2L, "taesu2", "taesu2@crscube.co.kr", "Taesu2"), study, studyUser1.audit)
-        val retrievedUser2 = StudyUser(User(1L, "taesu1", "taesu1@crscube.co.kr", "Taesu1"), study, studyUser2.audit)
+        val retrievedUser1 = StudyUser(User(2L, "taesu2", "taesu2@crscube.co.kr", "Taesu2"), study, Audit(
+                deleted = studyUser1.audit.deleted,
+                reason = studyUser1.audit.reason
+        ))
+        val retrievedUser2 = StudyUser(User(1L, "taesu1", "taesu1@crscube.co.kr", "Taesu1"), study, Audit(
+                deleted = studyUser1.audit.deleted,
+                reason = studyUser1.audit.reason
+        ))
 
         // when
         retrievedUser1.delete("delete user")

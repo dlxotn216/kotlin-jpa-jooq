@@ -84,3 +84,197 @@ server:
 코틀린의 기본 class는 모두 final이나 Mockito는 상속 가능한 기본 생성자를 가진 클래스를 요구한다.  
 이 때 /src/test/resources 디렉터리 하위에 /mockito-extensions 디렉터리를 생성하고  
 org.mockito.plugins.MockMaker 파일에 mock-maker-inline 한 줄 적어주면 spy, mock를 통해 생성이 가능해진다.    
+
+
+### JPA에서 연관 Entity에 대해 손쉽게 수정하기
+만약 아래와 같이 Study와 User의 관계를 담당하는 StudyUser 엔티티가 Set으로 정의가 되어있다면
+```kotlin
+@OneToMany(fetch = FetchType.LAZY, mappedBy = "study", cascade = [CascadeType.PERSIST, CascadeType.MERGE])
+val studyUsers: MutableSet<StudyUser> = mutableSetOf()
+
+class StudyUser(
+    @Id
+    @ManyToOne(fetch = FetchType.LAZY, optional = false, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
+    @JoinColumn(name = "USER_KEY")
+    val user: User,
+
+    @Id
+    @ManyToOne(fetch = FetchType.LAZY, optional = false, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
+    @JoinColumn(name = "STUDY_KEY")
+    val study: Study
+) {
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Study
+        return id == other.id
+    }
+
+    override fun hashCode() = id.hashCode()}
+```
+
+연관관계에 있는 Entity에 대한 추가 및 삭제(Soft delete)를 단순히 Set에 add를 하는 것으로 손쉽게 해결 할 수 있을 것 같다.  
+```kotlin
+// (before)
+val before = mutableSetOf(
+    StudyUser(study = 1, user = 1, deleted = false, reason = "Initial Input"),
+    StudyUser(study = 1, user = 2, deleted = false, reason = "Initial Input")
+)
+
+/*
+// request
+{
+    name: "Updated study",
+    studyUsers: [
+        {study: 1, user: 1, deleted: false},
+        {study: 1, user: 2, deleted: true},
+        {study: 1, user: 3, deleted: false}
+    ],
+    reason: "Delete user 2 and add User 3"
+}
+*/
+
+// (after)
+val after = mutableSetOf(
+    StudyUser(study = 1, user = 1, deleted = false, reason = "Initial Input"),
+    StudyUser(study = 1, user = 2, deleted = true, reason = "Delete user 2 and add User 3"),
+    StudyUser(study = 1, user = 3, deleted = false, reason = "Delete user 2 and add User 3")
+)
+```
+
+#### 실패 1
+Study에선 아래와 같이 단순 add 연산을 했었다.  
+```kotlin
+fun addStudyUser(studyUser: StudyUser) {
+    studyUsers.add(studyUser)
+}
+```
+아래와 같은 테스트도 잘 통과 했다.  
+```kotlin
+@Test
+fun `should update when deleted study users added`() {
+// given
+val study = Study(1L, "TEST_STD", "Test study")
+val studyUser1 = StudyUser(User(1L, "taesu1", "taesu1@crscube.co.kr", "Taesu1"), study)
+val studyUser2 = StudyUser(User(2L, "taesu2", "taesu2@crscube.co.kr", "Taesu2"), study)
+study.addStudyUser(studyUser1)
+study.addStudyUser(studyUser2)
+val retrievedUser1 = StudyUser(User(2L, "taesu2", "taesu2@crscube.co.kr", "Taesu2"), study, studyUser1.audit)
+val retrievedUser2 = StudyUser(User(1L, "taesu1", "taesu1@crscube.co.kr", "Taesu1"), study, studyUser2.audit)
+
+// when
+retrievedUser1.delete("delete user")
+retrievedUser2.delete("delete user")
+study.addStudyUser(retrievedUser1)
+study.addStudyUser(retrievedUser2)
+
+// then
+assertThat(study.studyUsers.all { it.deleted }).isTrue
+assertThat(study.studyUsers.all { it.reason == "delete user" }).isTrue
+assertThat(study.studyUsers.size).isEqualTo(2)
+}
+```
+
+하지만 위 테스트는 문제가 있다. Set은 중복 된 키가 있으면 업데이트하지 않고 무시한다. 그렇기에 아래 연산은 무시된다.    
+```kotlin
+study.addStudyUser(retrievedUser1)
+study.addStudyUser(retrievedUser2)
+```  
+그럼 결과는 어떻게 검증이 됐을까?  
+기존의 studyUser1, studyUser2의 audit 객체를 retrievedUser1, retrievedUser2 그대로 넣기 때문에    
+then에서 검증한 대로 "delete user"라는 변경사유를 통해 삭제된 Object가 잘 들어간 듯 보이기만한다.  
+실제 set안에 변경 된 object가 들어간게 아니다.        
+   
+
+따라서 아래와 같이 addStudyUser의 메서드를 수정하고 
+```kotlin
+fun addStudyUser(studyUser: StudyUser) {
+    if (!studyUsers.add(studyUser)) {
+        studyUsers.remove(studyUser)
+        studyUsers.add(studyUser)
+    }
+}
+```
+아래와 같이 테스트도 보완한다.
+```kotlin
+val retrievedUser1 = StudyUser(User(2L, "taesu2", "taesu2@crscube.co.kr", "Taesu2"), study, Audit(
+        deleted = studyUser1.audit.deleted,
+        reason = studyUser1.audit.reason
+))
+val retrievedUser2 = StudyUser(User(1L, "taesu1", "taesu1@crscube.co.kr", "Taesu1"), study, Audit(
+        deleted = studyUser1.audit.deleted,
+        reason = studyUser1.audit.reason
+))
+```
+
+#### 실패 2
+자바의 자료구조 상으론 업데이트가 잘 됐다. JPA에선 문제가 없을까?  
+실제로는 아래와 같엔 예외가 떨어진다.  
+> EntityExistsException: A different object with the same identifier value
+
+분면 CascadeType을 MERGE도 설정 해줬으나 이런 문제가 생긴다.  
+기존 로직에선 Transactional내에서 조회한 Entity를 별도로 save 해주지 않았는데 거기서 문제가 생긴 것 같다.
+AbstractSaveEventListener의 아래 로직에서 나는데 IdentityColumn을 사용하면 에러가 안나긴 한다.  
+다만 userKey, studyKey가 unique 조건을 맺어야 하기에... 역시 이후에 DuplicatedKey 에러가 날 것이다.  
+```java
+if ( !useIdentityColumn ) {
+    key = source.generateEntityKey( id, persister );
+    final PersistenceContext persistenceContext = source.getPersistenceContextInternal();
+    Object old = persistenceContext.getEntity( key );
+    if ( old != null ) {
+        if ( persistenceContext.getEntry( old ).getStatus() == Status.DELETED ) {
+            source.forceFlush( persistenceContext.getEntry( old ) );
+        }
+        else {
+            throw new NonUniqueObjectException( id, persister.getEntityName() );
+        }
+    }
+    persister.setIdentifier( entity, id, source );
+}
+```
+아래와 같이 save를 명시적으로 호출 해주었다.  
+save 내에선 new 여부에 따라 persist or merge를 호출 해 준다.  
+```java
+studyRepository.save(study)
+
+@Transactional
+public <S extends T> S save(S entity) {
+    Assert.notNull(entity, "Entity must not be null.");
+    if (this.entityInformation.isNew(entity)) {
+        this.em.persist(entity);
+        return entity;
+    } else {
+        return this.em.merge(entity);
+    }
+}
+```
+
+#### 실패 3
+저장이 잘 됐으니 끝났을까 싶지만 특정 비즈니스를 만족시키지 못하는 경우가 있다.  
+Audit의 특성 상 추적이 필요한 필드에 데이터의 변경이 있어야만 쌓여야 한다. Enver를 사용하기에 추적이 필요한 컬럼외의 reason만 바뀌어도 revision이 쌓인다...  
+
+예를 들어 아래와 같은 상황에선 추적이 필요한 필드(deleted)가 안바뀌었기에 revision이 쌓이면 안된다.  
+```kotlin
+// before
+StudyUser(study = 1, user = 1, deleted = false, reason = "initial")
+// request
+/*
+{
+  study: 1, 
+  user: 1,
+  delete: false,
+  reason: "change"
+}
+*/
+// after
+StudyUser(study = 1, user = 1, deleted = false, reason = "initial")
+``` 
+
+결국 요청이 들어온 데이터를 기반으로 해서 기존에 저장된 Entity를 조회하고  
+삭제 됐다면 deleted, reason을 바꿔주고 그렇지 안하면 변경하지 않고  
+새로운 등록 요청이면 객체를 생성해서 추가해주는 그런 처리가 결과적으로 필요하다.  
+
+Hibernate entity의 equals and hashcode를 오버라이딩 해서 Proxy 객체와의 동등성을 맞춰주는 것이 좋다 하는  
+글을 봐서 몇몇 시도를 해보았는데... 손 안대고 코풀기는 힘들 것 같다.     

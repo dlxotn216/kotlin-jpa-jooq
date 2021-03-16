@@ -61,7 +61,10 @@ class Study(
     operator fun plusAssign(studyUser: StudyUser) = addStudyUser(studyUser)
 
     fun addStudyUser(studyUser: StudyUser) {
-        studyUsers += studyUser
+        if (!studyUsers.add(studyUser)) {
+            studyUsers.remove(studyUser)
+            studyUsers.add(studyUser)
+        }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -85,6 +88,7 @@ interface StudyRepository : JpaRepository<Study, Long> {
 @Audited
 @EntityListeners(value = [AuditingEntityListener::class])
 class StudyUser(
+
         @Id
         @ManyToOne(fetch = FetchType.LAZY, optional = false, cascade = [CascadeType.PERSIST, CascadeType.MERGE])
         @JoinColumn(name = "USER_KEY")

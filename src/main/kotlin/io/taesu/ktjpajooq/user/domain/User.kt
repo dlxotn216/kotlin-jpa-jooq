@@ -50,5 +50,5 @@ class User(
 }
 
 interface UserRepository : JpaRepository<User, Long> {
-    fun findByKeyIn(keys: List<Long>): List<User>
+    fun findByKeyIn(keys: Collection<Long>): List<User>
 }

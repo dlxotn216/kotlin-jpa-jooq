@@ -40,6 +40,16 @@ class Runner(
                 name = "Lee2",
                 email = "taesu2@crscube.co.kr"))
 
+        val user3 = userRepository.save(User(
+                id = "taesu3",
+                name = "Lee3",
+                email = "taesu3@crscube.co.kr"))
+
+        val user4 = userRepository.save(User(
+                id = "taesu4",
+                name = "Lee4",
+                email = "taesu4@crscube.co.kr"))
+
         val study = Study(id = "std1", name = "test1 study")
         study += user1
         study += user1

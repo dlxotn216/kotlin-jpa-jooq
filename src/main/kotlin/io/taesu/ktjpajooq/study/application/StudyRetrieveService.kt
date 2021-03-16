@@ -4,8 +4,10 @@ import io.taesu.ktjpajooq.base.exception.throwResourceNotFound
 import io.taesu.ktjpajooq.study.domain.StudyRepository
 import io.taesu.ktjpajooq.study.interfaces.StudyRetrieveResponse
 import org.springframework.stereotype.Component
+import org.springframework.transaction.annotation.Transactional
 
 @Component
+@Transactional(readOnly = true)
 class StudyRetrieveService(
         private val studyRepository: StudyRepository
 ) {
