@@ -19,3 +19,6 @@ class InvalidRequestException(
 fun throwException(errorCode: String,
                    message: String,
                    statusCode: HttpStatus = HttpStatus.BAD_REQUEST): Nothing = throw InvalidRequestException(errorCode, message, statusCode)
+
+fun throwResourceNotFound(): Nothing = throw resourceNotFound()
+fun resourceNotFound() = InvalidRequestException("RESOURCE_NOT_FOUND", "Resource not found", HttpStatus.BAD_REQUEST)

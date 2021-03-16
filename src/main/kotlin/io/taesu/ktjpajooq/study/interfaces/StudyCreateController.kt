@@ -20,7 +20,7 @@ class StudyCreateController(
         private val studyCreateService: StudyCreateService
 ) {
     @PostMapping("/api/v1/studies")
-    fun create(@RequestBody request: StudyCreateRequest): ResponseEntity<SuccessResponse> {
+    fun create(@RequestBody request: StudyCreateRequest): ResponseEntity<SuccessResponse<Map<String, Long>>> {
         val studyKey = studyCreateService.create(request)
         return ResponseEntity.created(
                 URI.create("/api/v1/studies/${studyKey}")

@@ -7,8 +7,8 @@ package io.taesu.ktjpajooq.base.interfaces
  * @version TBD
  * @since TBD
  */
-class SuccessResponse(
-        val result: Any?,
+class  SuccessResponse<T: Any?>(
+        val result: T,
         val message: String = "Request was success",
 ) {
     val status: String = "success"
