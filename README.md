@@ -703,3 +703,96 @@ update에 old를 넘기는 부분이 좀 맘에 안들긴 하지만 Select를 �
 JOOQ를 사용한다면 이 방식으로 쭈욱 나가지 않을까 싶은데 Entity <-> Record 변환 부분이 참 맘에 걸린다.  
 Revision Entity도 신경 써줘야 하니...  
 (Enver의 스키마에 맞추다보니 rev, revtype을 같이 넣어줘야 해서 생긴 변환이니 이건 무시해도 좋을 듯 하다.)
+
+### JOOQ를 통해 관계 테이블 업데이트 하기
+onDuplicateKeyUpdate 구문을 통해 insert or update를 의도했다.  
+```kotlin
+fun saveUserRole(userRole: UserRoleEntity) {
+    val ur = USR_ROLE
+
+    val updated = dslContext.insertInto(ur)
+        .set(toRecord(userRole))
+        .onDuplicateKeyUpdate()
+        .set(ur.DELETED, userRole.deleted)
+        .set(ur.REASON, userRole.reason)
+        .set(ur.MODIFIED_BY, userRole.modifiedBy)
+        .set(ur.MODIFIED_AT, userRole.modifiedAt)
+        .where(
+            ur.ROLE_KEY.eq(userRole.roleKey)
+                .and(ur.USER_KEY.eq(userRole.userKey))
+                .and(ur.DELETED.ne(userRole.deleted))
+        )
+        .execute()
+
+    if (updated > 0) {
+        dslContext.executeInsert(toHistoryRecord(userRole))
+    }
+}
+```
+의도 한 대로 잘 동작 한다. where 조건에 변경이 있는지에 대한 조건도 넣어주어서 구문을 작성하였고  
+변경이 없는 row는 updated가 0으로 반환 된다.  
+
+> req1: {roles: [{roleKey: 1, deleted: false}, {roleKey: 2, deleted: false}], reason: "add role 1, 2" }  
+> req2: {roles: [{roleKey: 1, deleted: false}, {roleKey: 2, deleted: false}], reason: "add role 1, 2" }  
+> req3: {roles: [{roleKey: 1, deleted: false}, {roleKey: 2, deleted: true}], reason: "remove role 2" }   
+
+위 순서대로 요청을 날렸을 때 revision이다.  
+<img src="https://github.com/dlxotn216/image/blob/master/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA%202021-03-17%20%E1%84%8B%E1%85%A9%E1%84%92%E1%85%AE%204.54.31.png?raw=true" />
+
+가만 생각해보니 updated 카운트는 실제 변경 된 행을 의미하는 것일까 아니면 update 조건에 걸린 행을 의미할까...  
+
+아래와 같이 비교 구문을 제거하고 날려보았다.    
+```kotlin
+@Transactional
+fun update(old: RoleEntity, role: RoleEntity): RoleEntity {
+    // if (old == role) {
+    //     return old
+    // }
+
+    val mr = MST_ROLE
+    return role.apply {
+        val updated = dslContext.update(mr)
+            .set(mr.NAME, name)
+            .set(mr.DELETED, deleted)
+            .set(mr.REASON, reason)
+            .where(mr.ROLE_KEY.eq(key)).execute()
+
+        if (updated > 0) {
+            dslContext.executeInsert(toHistoryRecord(key, role))
+        }
+    }
+}
+```
+revision이 요청한 횟수만큼 쌓였다. where 조건에 걸린 행을 의미하고 있는 것 같다.  
+<img src="https://github.com/dlxotn216/image/blob/master/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA%202021-03-17%20%E1%84%8B%E1%85%A9%E1%84%92%E1%85%AE%205.00.35.png?raw=true" />
+
+### 결론
+JOOQ를 이용하면 Type Safety한 SQL을 작성 할 수 있음이 분명하다.  
+Hibernate를 사용하며 N+1 등의 문제를 방지하기 위해 JPQL 혹은 queryDSL 기반으로 fetch join을 사용했지만  
+SQL과 비슷한 또 다른 DSL을 이용하는 느낌이었다.  
+
+그러느니 차라리 SQL을 잘 다루면 되지 않는가 싶어 JOOQ를 사용해보았고 필요한 비즈니스 룰을 샘플링하여 프로토타입 해보았다.  
+처음에는 복잡한 Join이 많은 부분을 JOOQ로 사용하고 그 외는 Hibernate를 적극 활용하자 였으나  
+Revision 부분만 잘 해결 해 주면 될 것 같아 Insert, Update도 JOOQ로 개발 해 보았다.   
+  
+JOOQ를 사용하면 어쩔 수 없이 사고가 SQL 중심으로 이동할 수 밖에 없는 것 같다.  
+복잡한 객체의 상태 변화가 있는 환경에서 주요 비즈니스 로직을 생각하다가도 어느새 update나 revision insert 시에 빠진 컬럼은 없는 지  
+확인하는 내 모습을 볼 수 있다.  
+
+어떻게든 Select를 줄이려고 하고 있고 Entity에 Opeartion을 통해 상태를 바꾸려는 생각을 안하고 있다...  
+아마 Request/Response <-> Entity <-> Record로 이어지는 관계에서 누락되는 부분을 두려워해서 그런 듯 싶다.  
+
+또한 현재 설정에선 JOOQ + Hibernate를 사용하기에 Local 환경에서 H2 DBMS에 맞게 테이블이 알아서 생성된다.  
+JOOQ 단독인 환경에선 H2에 맞는 Schema, JOOQ Code generation 전용 Schema, 실제 DB에 맞는 Schema를 따로 관리해야 한다.  
+지옥이 펼쳐지지 않을까 싶다. JOOQ만 사용한다면 local 환경도 실 환경과 동일한 유형의 DBMS를 사용하는 것이 나을 듯.      
+JOOQ는 Type safety 한 SQL 작성에 초점이 있지 어떤 DBMS 종속이 없는 SQL을 만등러내는 것이 주가 아니다.  
+(만약 종속성 없는 SQL을 만들어주게 했다면 merge into, duplicate on key 구문이 없어야 하겠지...)   
+
+최종적으로는 CUD엔 Hibernate를 잘쓰고 다수의 join이 걸리는 곳엔 JOOQ를 사용하자가 나은 것 같다.  
+CUD를 위해서 Entity를 조회할 때 연결 된 Entity Graph 때문에 n+1 문제가 아니더라도 많은 수의 select가 날아가는  
+부분이 참 싫었고 그래서 더 JOOQ를 통해 CUD도 해보려고 했던 것 같다.  
+
+그런 부분은 정말 성능 최적화가 필요할 때 JPQL이나 Query DSL을 적절히 넣어주자...  
+거기에 JOOQ까지 들어오면 또 골치가 아파질 것 같기도 하지만...    
+
+kotlin 환경이니 만큼 requery나 exposed는 어떨까 또 궁금하다. 
