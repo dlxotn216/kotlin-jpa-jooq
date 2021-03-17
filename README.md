@@ -278,3 +278,347 @@ StudyUser(study = 1, user = 1, deleted = false, reason = "initial")
 
 Hibernate entity의 equals and hashcode를 오버라이딩 해서 Proxy 객체와의 동등성을 맞춰주는 것이 좋다 하는  
 글을 봐서 몇몇 시도를 해보았는데... 손 안대고 코풀기는 힘들 것 같다.     
+
+
+### JOOQ 만 사용해보기
+Entity를 kotlin data class로 선언하고 변경에 대한 비교 기준이 되는 필드만 constructor에 선언해주면  
+실제 변경사항이 있을 때 업데이트 치는 로직을 구현하기 쉽지 않을까 싶었다.    
+```kotlin
+data class RoleEntity(
+    var key: Long = -1L,
+    val id: String,
+    var name: String,               // 변경 감지 대상 필드
+    var deleted: Boolean = false    // 변경 감지 대상 필드
+) {
+    var audit: Audit = Audit()
+    val reason: String get() = audit.reason
+    val createdBy: Long get() = audit.createdBy
+    val createdAt: LocalDateTime get() = audit.createdAt
+    val modifiedBy: Long get() = audit.modifiedBy
+    val modifiedAt: LocalDateTime get() = audit.modifiedAt
+}
+```
+이러면 name, deleted외의 변경사항이 있어도 equal 비교에서 같음으로 나타나니 말이다.  
+물론 컬렉션 연산에서 문제가 당연 생길 수 있을 것이기도 하다.  
+
+아래와 같이 Repository를 구성하
+```kotlin
+@Component
+class RoleQuery(val dslContext: DSLContext) {
+
+    @Transactional
+    fun save(role: RoleEntity): RoleEntity {
+        return if (role.key <= -1L) {
+            create(role)
+        } else {
+            update(role)
+        }
+    }
+
+    @Transactional
+    fun create(role: RoleEntity): RoleEntity {
+        val nextVal = ROLE_SEQ.nextval()
+        val roleKey = dslContext.select(nextVal).fetchOne(nextVal)
+        role.key = roleKey!!
+
+        return role.apply {
+            // case 3
+            dslContext.batchInsert(toRecord(roleKey, this), toHistoryRecord(roleKey, this)).execute()
+        }
+    }
+    /*
+    // case 1
+    // val MR = MST_ROLE
+    // dslContext.insertInto(MR)
+    //         .set(MR.ROLE_KEY, roleKey)
+    //         .set(MR.ROLE_ID, role.id)
+    //         .set(MR.NAME, role.name)
+    //         .set(MR.DELETED, role.deleted)
+    //         .set(MR.REASON, role.reason)
+    //         .set(MR.CREATED_BY, role.createdBy)
+    //         .set(MR.CREATED_AT, role.createdAt)
+    //         .set(MR.MODIFIED_BY, role.modifiedBy)
+    //         .set(MR.MODIFIED_AT, role.modifiedAt)
+    //         .execute()
+    //
+    // val MR_HIS = MST_ROLE_HIS
+    // dslContext.insertInto(MR_HIS)
+    //         .set(MR_HIS.ROLE_KEY, roleKey)
+    //         .set(MR_HIS.REV, 1L)
+    //         .set(MR_HIS.REVTYPE, 1L)
+    //         .set(MR_HIS.ROLE_ID, role.id)
+    //         .set(MR_HIS.NAME, role.name)
+    //         .set(MR_HIS.DELETED, role.deleted)
+    //         .set(MR_HIS.REASON, role.reason)
+    //         .set(MR_HIS.CREATED_BY, role.createdBy)
+    //         .set(MR_HIS.CREATED_AT, role.createdAt)
+    //         .set(MR_HIS.MODIFIED_BY, role.modifiedBy)
+    //         .set(MR_HIS.MODIFIED_AT, role.modifiedAt)
+    //         .execute()
+
+    // case 2
+    // dslContext.insertInto(MST_ROLE).set(toRecord(roleKey, role)).execute()
+    // dslContext.insertInto(MST_ROLE_HIS).set(toHistoryRecord(roleKey, role)).execute()
+     */
+
+    @Transactional
+    fun update(role: RoleEntity): RoleEntity {
+        return role.apply {
+            val updated = dslContext.executeUpdate(toRecord(this.key, this))
+            if (updated == 1) {
+                dslContext.executeInsert(toHistoryRecord(this.key, this))
+            }
+        }
+    }
+
+    @Transactional(readOnly = true)
+    fun select(roleKey: Long): RoleEntity? {
+        val record = dslContext.selectFrom(MST_ROLE)
+            .where(MST_ROLE.ROLE_KEY.eq(roleKey)).fetchOne()
+        return record?.toEntity()
+    }
+
+    fun MstRoleRecord?.toEntity(): RoleEntity? {
+        return if (this == null) {
+            null
+        } else {
+            RoleEntity(
+                key = roleKey!!,
+                id = roleId!!,
+                name = name ?: "",
+                deleted = deleted!!
+            ).apply {
+                this.audit = Audit(
+                    reason = reason,
+                    createdBy = createdBy,
+                    createdAt = createdAt,
+                    modifiedBy = modifiedBy,
+                    modifiedAt = modifiedAt,
+                )
+            }
+        }
+    }
+
+    private fun toRecord(roleKey: Long?, role: RoleEntity) = MstRoleRecord(
+        roleKey = roleKey!!,
+        roleId = role.id,
+        name = role.name,
+        deleted = role.deleted,
+        reason = role.reason,
+        createdBy = role.createdBy,
+        createdAt = role.createdAt,
+        modifiedBy = role.modifiedBy,
+        modifiedAt = role.modifiedAt
+    )
+
+    private fun toHistoryRecord(roleKey: Long?, role: RoleEntity): MstRoleHisRecord {
+        val rev = Math.abs(Random.nextInt()).toLong()
+        dslContext.executeInsert(
+            RevinfoRecord(rev = rev,
+                          revtstmp = role.modifiedAt.atZone(ZoneId.of("UTC")).toInstant().toEpochMilli()))
+
+        return MstRoleHisRecord(
+            roleKey = roleKey!!,
+            roleId = role.id,
+            name = role.name,
+            deleted = role.deleted,
+            reason = role.reason,
+            createdBy = role.createdBy,
+            createdAt = role.createdAt,
+            modifiedBy = role.modifiedBy,
+            modifiedAt = role.modifiedAt,
+            rev = rev,
+            revtype = 1L
+        )
+    }
+}
+```
+
+처음엔 Repository 영역 내에서 save시 key로 현재 저장된 Entity를 조회하여 요청 Entity와의 다른 점이 있는 지 비교하려고 했는데
+```kotlin
+// service에서 변환 된 요청 Entity
+val requestToEntity = response.toEntity()
+
+// 조회 한 Entity
+val selectedEntity = query.select()
+
+if(requestToEntity != selectedEntity) {
+    // do update
+}
+```
+
+이럴 경우 requestToEntity에 변경 될 수 없는 프로퍼티(roleId)가 공백으로 들어가야 하는 것이 싫었다.  
+Repository 내에선 name만 업데이트를 칠 것이기에 문제는 없었으나 정합성이 깨진 Entity가 돌아다닐 수 있기에...  
+그렇다고 RequestDto를 Repository로 들여보내기도 싫었고...  
+ 
+ 그래서 Service에서 Entity를 조회하고 미리 값을 채워주었다.
+ ```kotlin
+// service에서 변환 된 요청 Entity
+val requestToEntity = query.select().apply{
+  name = response.name,
+  deleted = response.deleted,
+  audit = Audit(
+                createdBy = 1L,
+                createdAt = now,
+                modifiedBy = 1L,
+                modifiedAt = now,
+                reason = request.reason
+            )
+}
+
+
+// 조회 한 Entity
+val selectedEntity = query.select()
+if (requestToEntity != selectedEntity) {
+    // do update
+}
+``` 
+이러다보니 select를 두 번 하는 꼴이 된다.  
+결과적으로는 아래와 같이 서비스에서 변경이 있는 지 비교하는게 나을 것 같았다.    
+```kotlin
+@Component
+class RoleUpdateService(val roleQuery: RoleQuery) {
+    @Transactional
+    fun update(roleKey: Long, request: RoleUpdateRequest): RoleRetrieveResponse {
+        val previous = roleQuery.select(roleKey) ?: throwResourceNotFound()
+
+        val now = LocalDateTime.now()
+        val role = previous.copy(
+            key = roleKey,
+            name = request.name,
+            deleted = request.deleted).apply {
+            audit = Audit(
+                createdBy = 1L,
+                createdAt = now,
+                modifiedBy = 1L,
+                modifiedAt = now,
+                reason = request.reason
+            )
+        }
+        // 변경이 있는 경우에만 수정한다.
+        if (previous != role) {
+            roleQuery.update(role)
+        }
+
+        return RoleRetrieveResponse(
+            key = role.key,
+            id = role.id,
+            name = role.name,
+            deleted = role.deleted)
+    }
+
+}
+```
+아래와 같이 로그도 보기쉽게 나오고 사용성은 좋은 것 같다.  
+<img src="https://github.com/dlxotn216/image/blob/master/%E1%84%89%E1%85%B3%E1%84%8F%E1%85%B3%E1%84%85%E1%85%B5%E1%86%AB%E1%84%89%E1%85%A3%E1%86%BA%202021-03-17%20%E1%84%8B%E1%85%A9%E1%84%92%E1%85%AE%201.36.50.png?raw=true" />
+
+다만 JPA를 사용한다면 Request/Response -> Entity로 총 두 번의 변환이 있지만  
+JOOQ를 사용한다면 Request/Response -> Entity -> Record로 총 세번의 변환이 발생한다는 점이 단점같다.  
+그에 따라서 프로퍼티 누락 등의 실수할 수 있는 구간이 늘어나기도 하고 컬럼 변경 등의 Schema 변경에 따라 영향이 가는 위치가 늘어날테니...    
+
+Entity 뿐아니라 Enver에서 해주는 Revision에 대한 것도 신경써줘야 하니... 그것 또한 문제가 아닐 수 없다.  
+아래와 같이 Entity <-> Record에 대한 부분을 함수/메서드로 만들고 단위테스트를 잘 채우면 될까 싶기도 하지만  
+필드가 추가 됐을 때 테스트마저 누락되면 역시 실수는 분면 발생할 것이라 완전하지는 않은 듯.  
+JPA라면 update 메서드에 인자를 추가하면 컴파일 시점에 알 수 있을 테니까...
+```kotlin
+fun MstRoleRecord?.toEntity(): RoleEntity? {
+    return if (this == null) {
+        null
+    } else {
+        RoleEntity(
+            key = roleKey!!,
+            id = roleId!!,
+            name = name ?: "",
+            deleted = deleted!!
+        ).apply {
+            this.audit = Audit(
+                reason = reason,
+                createdBy = createdBy,
+                createdAt = createdAt,
+                modifiedBy = modifiedBy,
+                modifiedAt = modifiedAt,
+            )
+        }
+    }
+}
+
+private fun toRecord(roleKey: Long?, role: RoleEntity) = MstRoleRecord(
+    roleKey = roleKey!!,
+    roleId = role.id,
+    name = role.name,
+    deleted = role.deleted,
+    reason = role.reason,
+    createdBy = role.createdBy,
+    createdAt = role.createdAt,
+    modifiedBy = role.modifiedBy,
+    modifiedAt = role.modifiedAt
+)
+
+private fun toHistoryRecord(roleKey: Long?, role: RoleEntity): MstRoleHisRecord {
+    val rev = Math.abs(Random.nextInt()).toLong()
+    dslContext.executeInsert(
+        RevinfoRecord(rev = rev,
+                      revtstmp = role.modifiedAt.atZone(ZoneId.of("UTC")).toInstant().toEpochMilli()))
+
+    return MstRoleHisRecord(
+        roleKey = roleKey!!,
+        roleId = role.id,
+        name = role.name,
+        deleted = role.deleted,
+        reason = role.reason,
+        createdBy = role.createdBy,
+        createdAt = role.createdAt,
+        modifiedBy = role.modifiedBy,
+        modifiedAt = role.modifiedAt,
+        rev = rev,
+        revtype = 1L
+    )
+}
+```
+
+### JOOQ를 사용한 Insert 방법
+다양한 케이스가 존재 하는 듯 하다.   
+batch insert도 가능하고 DBMS에 따라 merge into나 on duplicated 관련 처리도 가능하다. 
+case 1
+```kotlin
+val MR = MST_ROLE
+dslContext.insertInto(MR)
+        .set(MR.ROLE_KEY, roleKey)
+        .set(MR.ROLE_ID, role.id)
+        .set(MR.NAME, role.name)
+        .set(MR.DELETED, role.deleted)
+        .set(MR.REASON, role.reason)
+        .set(MR.CREATED_BY, role.createdBy)
+        .set(MR.CREATED_AT, role.createdAt)
+        .set(MR.MODIFIED_BY, role.modifiedBy)
+        .set(MR.MODIFIED_AT, role.modifiedAt)
+        .execute()
+
+val MR_HIS = MST_ROLE_HIS
+dslContext.insertInto(MR_HIS)
+        .set(MR_HIS.ROLE_KEY, roleKey)
+        .set(MR_HIS.REV, 1L)
+        .set(MR_HIS.REVTYPE, 1L)
+        .set(MR_HIS.ROLE_ID, role.id)
+        .set(MR_HIS.NAME, role.name)
+        .set(MR_HIS.DELETED, role.deleted)
+        .set(MR_HIS.REASON, role.reason)
+        .set(MR_HIS.CREATED_BY, role.createdBy)
+        .set(MR_HIS.CREATED_AT, role.createdAt)
+        .set(MR_HIS.MODIFIED_BY, role.modifiedBy)
+        .set(MR_HIS.MODIFIED_AT, role.modifiedAt)
+        .execute()
+```
+
+case 2
+```kotlin
+dslContext.insertInto(MST_ROLE).set(toRecord(roleKey, role)).execute()
+dslContext.insertInto(MST_ROLE_HIS).set(toHistoryRecord(roleKey, role)).execute()
+```
+
+case 3
+```kotlin
+role.apply {
+    dslContext.batchInsert(toRecord(roleKey, this), toHistoryRecord(roleKey, this)).execute()    
+}
+```
