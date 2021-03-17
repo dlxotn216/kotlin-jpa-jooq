@@ -18,7 +18,7 @@ internal class StudyUserIdTest {
 
         // then
         assertThat(id).isEqualTo(StudyUserId())
-        assertThat(id.user).isEqualTo(1L)
+        assertThat(id.user).isEqualTo(-1L)
         assertThat(id.study).isEqualTo(-1L)
     }
 }

@@ -22,7 +22,7 @@ class RoleUpdateController(
     fun create(
         @PathVariable("roleKey") roleKey: Long,
         @RequestBody request: RoleUpdateRequest): ResponseEntity<SuccessResponse<RoleRetrieveResponse>> {
-        return ResponseEntity.created(URI.create("/api/v1/roles/"))
+        return ResponseEntity.ok()
                 .body(SuccessResponse(result = roleUpdateService.update(roleKey, request)))
     }
 }

@@ -3,6 +3,7 @@ package io.taesu.ktjpajooq.role.domain
 import com.sun.org.apache.xpath.internal.operations.Bool
 import io.taesu.ktjpajooq.base.domain.Audit
 import io.taesu.ktjpajooq.study.domain.Study
+import org.hibernate.annotations.NaturalId
 import org.hibernate.envers.Audited
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
 import java.time.LocalDateTime
@@ -26,6 +27,7 @@ class Role(
     @SequenceGenerator(allocationSize = 1, name = "ROLE_SEQ", sequenceName = "ROLE_SEQ")
     var key: Long? = null,
 
+    @NaturalId
     @Column(name = "ROLE_ID", length = 256, unique = true, nullable = false)
     val id: String,
 

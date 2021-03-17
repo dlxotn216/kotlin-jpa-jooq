@@ -13,13 +13,13 @@ import java.time.LocalDateTime
 class RoleUpdateService(val roleQuery: RoleQuery) {
     @Transactional
     fun update(roleKey: Long, request: RoleUpdateRequest): RoleRetrieveResponse {
-        val previous = roleQuery.select(roleKey) ?: throwResourceNotFound()
-
         val now = LocalDateTime.now()
-        val role = previous.copy(
+        val old = roleQuery.select(roleKey) ?: throwResourceNotFound()
+        val role = old.copy(
             key = roleKey,
             name = request.name,
-            deleted = request.deleted).apply {
+            deleted = request.deleted
+        ).apply {
             audit = Audit(
                 createdBy = 1L,
                 createdAt = now,
@@ -29,15 +29,12 @@ class RoleUpdateService(val roleQuery: RoleQuery) {
             )
         }
 
-        if (previous != role) {
-            roleQuery.update(role)
+        return with(roleQuery.update(old, role)) {
+            RoleRetrieveResponse(
+                key = key,
+                id = id,
+                name = name,
+                deleted = deleted)
         }
-
-        return RoleRetrieveResponse(
-            key = role.key,
-            id = role.id,
-            name = role.name,
-            deleted = role.deleted)
     }
-
 }

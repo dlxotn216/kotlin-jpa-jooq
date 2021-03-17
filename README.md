@@ -622,3 +622,84 @@ role.apply {
     dslContext.batchInsert(toRecord(roleKey, this), toHistoryRecord(roleKey, this)).execute()    
 }
 ```
+
+### JOOQ로 변경비교 두번째...
+아래와 같이 update 구문에 조건절을 추가하고 update 된 행이 있으면 revision을 insert 한다.
+```kotlin
+val updated = dslContext.update(mr)
+                .set(mr.NAME, role.name)
+                .set(mr.DELETED, role.deleted)
+                .set(mr.REASON, role.reason)
+                .where(
+                    mr.ROLE_KEY.eq(role.key)
+                        .and(
+                            nullif(mr.NAME, "").ne(role.name ?: "")
+                                .or(mr.DELETED.ne(role.deleted))
+                        )
+                ).execute()
+
+if (updated > 0) {
+    dslContext.executeInsert(toHistoryRecord(role.key, role))
+}
+```
+
+### JOOQ로 변경비교 세번째...
+아래와 같이 최초 조회 된 old와 request로 부터 변경될 field가 설정 된 roleEntity를 같이 Repository에 넘긴다.  
+```kotlin
+class Service {
+    fun update(roleKey: Long, request: RoleUpdateRequest): RoleRetrieveResponse {
+        val now = LocalDateTime.now()
+        val old = roleQuery.select(roleKey) ?: throwResourceNotFound()
+        val role = old.copy(
+            key = roleKey,
+            name = request.name,
+            deleted = request.deleted
+        ).apply {
+            audit = Audit(
+                createdBy = 1L,
+                createdAt = now,
+                modifiedBy = 1L,
+                modifiedAt = now,
+                reason = request.reason
+            )
+        }
+    
+        return with(roleQuery.update(old, role)) {
+            RoleRetrieveResponse(
+                key = key,
+                id = id,
+                name = name,
+                deleted = deleted)
+        }
+    }
+}
+```
+repository에서 동등을 비교하며 업데이트를 수행하고 revision을 쌓는다. 
+```kotlin
+class Repository {
+    fun update(old: RoleEntity, role: RoleEntity): RoleEntity {
+        if (old == role) {
+            return old
+        }
+    
+        val mr = MST_ROLE
+        return role.apply {
+            val updated = dslContext.update(mr)
+                .set(mr.NAME, name)
+                .set(mr.DELETED, deleted)
+                .set(mr.REASON, reason)
+                .where(mr.ROLE_KEY.eq(key)).execute()
+    
+            if (updated > 0) {
+                dslContext.executeInsert(toHistoryRecord(key, role))
+            }
+        }
+    }
+}
+```
+
+update에 old를 넘기는 부분이 좀 맘에 안들긴 하지만 Select를 줄일 수 있어 제일 나은 듯 하다.  
+변경이 없으면 아예 update 쿼리 자체를 날리지 않을 수 있으니.  
+JOOQ를 사용한다면 이 방식으로 쭈욱 나가지 않을까 싶은데 Entity <-> Record 변환 부분이 참 맘에 걸린다.  
+Revision Entity도 신경 써줘야 하니...  
+(Enver의 스키마에 맞추다보니 rev, revtype을 같이 넣어줘야 해서 생긴 변환이니 이건 무시해도 좋을 듯 하다.)

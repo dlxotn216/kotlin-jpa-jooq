@@ -2,6 +2,7 @@ package io.taesu.ktjpajooq.study.domain
 
 import io.taesu.ktjpajooq.base.domain.Audit
 import io.taesu.ktjpajooq.user.domain.User
+import org.hibernate.annotations.NaturalId
 import org.hibernate.envers.Audited
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
 import org.springframework.data.repository.CrudRepository
@@ -26,6 +27,7 @@ class Study(
         @SequenceGenerator(allocationSize = 1, name = "STUDY_SEQ", sequenceName = "STUDY_SEQ")
         var key: Long? = null,
 
+        @NaturalId
         @Column(name = "STUDY_ID", length = 256, unique = true, nullable = false)
         val id: String,
 

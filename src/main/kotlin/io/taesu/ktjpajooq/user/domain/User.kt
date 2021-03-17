@@ -2,6 +2,7 @@ package io.taesu.ktjpajooq.user.domain
 
 import io.taesu.ktjpajooq.base.domain.Audit
 import io.taesu.ktjpajooq.study.domain.Study
+import org.hibernate.annotations.NaturalId
 import org.hibernate.envers.Audited
 import org.springframework.data.jpa.domain.support.AuditingEntityListener
 import org.springframework.data.jpa.repository.JpaRepository
@@ -28,6 +29,7 @@ class User(
         @Column(name = "USER_ID", length = 256, unique = true, nullable = false)
         val id: String,
 
+        @NaturalId
         @Column(name = "EMAIL", length = 256, unique = true, nullable = false)
         val email: String,
 

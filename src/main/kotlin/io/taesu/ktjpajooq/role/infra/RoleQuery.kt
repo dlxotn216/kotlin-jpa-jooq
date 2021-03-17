@@ -24,66 +24,32 @@ import kotlin.random.Random
 class RoleQuery(val dslContext: DSLContext) {
 
     @Transactional
-    fun save(role: RoleEntity): RoleEntity {
-        return if (role.key <= -1L) {
-            insert(role)
-        } else {
-            update(role)
-        }
-    }
-
-    @Transactional
     fun insert(role: RoleEntity): RoleEntity {
         val nextVal = ROLE_SEQ.nextval()
         val roleKey = dslContext.select(nextVal).fetchOne(nextVal)
         role.key = roleKey!!
 
         return role.apply {
-            // case 3
             dslContext.batchInsert(toRecord(roleKey, this), toHistoryRecord(roleKey, this)).execute()
         }
     }
-    /*
-    // case 1
-    // val MR = MST_ROLE
-    // dslContext.insertInto(MR)
-    //         .set(MR.ROLE_KEY, roleKey)
-    //         .set(MR.ROLE_ID, role.id)
-    //         .set(MR.NAME, role.name)
-    //         .set(MR.DELETED, role.deleted)
-    //         .set(MR.REASON, role.reason)
-    //         .set(MR.CREATED_BY, role.createdBy)
-    //         .set(MR.CREATED_AT, role.createdAt)
-    //         .set(MR.MODIFIED_BY, role.modifiedBy)
-    //         .set(MR.MODIFIED_AT, role.modifiedAt)
-    //         .execute()
-    //
-    // val MR_HIS = MST_ROLE_HIS
-    // dslContext.insertInto(MR_HIS)
-    //         .set(MR_HIS.ROLE_KEY, roleKey)
-    //         .set(MR_HIS.REV, 1L)
-    //         .set(MR_HIS.REVTYPE, 1L)
-    //         .set(MR_HIS.ROLE_ID, role.id)
-    //         .set(MR_HIS.NAME, role.name)
-    //         .set(MR_HIS.DELETED, role.deleted)
-    //         .set(MR_HIS.REASON, role.reason)
-    //         .set(MR_HIS.CREATED_BY, role.createdBy)
-    //         .set(MR_HIS.CREATED_AT, role.createdAt)
-    //         .set(MR_HIS.MODIFIED_BY, role.modifiedBy)
-    //         .set(MR_HIS.MODIFIED_AT, role.modifiedAt)
-    //         .execute()
-
-    // case 2
-    // dslContext.insertInto(MST_ROLE).set(toRecord(roleKey, role)).execute()
-    // dslContext.insertInto(MST_ROLE_HIS).set(toHistoryRecord(roleKey, role)).execute()
-     */
 
     @Transactional
-    fun update(role: RoleEntity): RoleEntity {
+    fun update(old: RoleEntity, role: RoleEntity): RoleEntity {
+        if (old == role) {
+            return old
+        }
+
+        val mr = MST_ROLE
         return role.apply {
-            val updated = dslContext.executeUpdate(toRecord(this.key, this))
-            if (updated == 1) {
-                dslContext.executeInsert(toHistoryRecord(this.key, this))
+            val updated = dslContext.update(mr)
+                .set(mr.NAME, name)
+                .set(mr.DELETED, deleted)
+                .set(mr.REASON, reason)
+                .where(mr.ROLE_KEY.eq(key)).execute()
+
+            if (updated > 0) {
+                dslContext.executeInsert(toHistoryRecord(key, role))
             }
         }
     }
