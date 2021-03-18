@@ -795,4 +795,11 @@ CUD를 위해서 Entity를 조회할 때 연결 된 Entity Graph 때문에 n+1 �
 그런 부분은 정말 성능 최적화가 필요할 때 JPQL이나 Query DSL을 적절히 넣어주자...  
 거기에 JOOQ까지 들어오면 또 골치가 아파질 것 같기도 하지만...    
 
-kotlin 환경이니 만큼 requery나 exposed는 어떨까 또 궁금하다. 
+kotlin 환경이니 만큼 requery나 exposed는 어떨까 또 궁금하다.   
+
+### TestContainer
+지금 껏 왜 H2를 꼭 같이 적용하는 것을 고민했을까?  
+아마도 손쉬운 단위테스트 + 통합테스트를 위해서였다.  
+하지만 실 환경 DB와 다른 부분으로 인해 JOOQ 같은 경우 각 환경에 따른 문법을 유지해줘야 할 수 있다.  
+TestContainer를 사용하면 Test 환경에서 Docker를 통해 실 환경에서 사용 할 DBMS를 가동 할 수 있다고 한다.  
+JPA를 적극 사용하느 스키마를 자동 생성하고 그 Container에 SQL을 날리는 방법으로 하면 단일 플랫폼 환경을 유지할 수 있지 않을까...
